@@ -1,0 +1,25 @@
+services:
+  deltachat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deltachat-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - WEB_PASSWORD=your_secure_password_here
+    volumes:
+      - deltachat_data:/opt/deltachat-desktop/packages/target-browser/data
+    
+    # 1. Writes the env variable to the required .env file
+    # 2. Makes sure the certificate folder exists in the volume
+    # 3. Copies the certificates safely
+    # 4. Starts the app
+    command: >
+      sh -c "echo \"WEB_PASSWORD=$$WEB_PASSWORD\" > .env &&
+             mkdir -p data/certificate && 
+             cp -rn /opt/deltachat-certificate/* data/certificate/ && 
+             pnpm run start"
+volumes:
+  deltachat_data:

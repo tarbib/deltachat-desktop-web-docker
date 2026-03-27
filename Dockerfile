@@ -11,7 +11,6 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 EXPOSE 3000
 
-VOLUME /opt/deltachat-desktop/packages/target-browser/.env
 VOLUME /opt/deltachat-desktop/packages/target-browser/data
 
 WORKDIR /opt/deltachat-desktop
