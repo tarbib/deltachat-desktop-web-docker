@@ -23,9 +23,8 @@ RUN apk update && apk add git curl \
 WORKDIR /opt/deltachat-desktop/packages/target-browser
 
 COPY --from=certgen /opt/deltachat-certificate/ /opt/deltachat-certificate/
-COPY base_url.patch /opt/deltachat-base_url.patch
-
-RUN git apply /opt/deltachat-base_url.patch \
+RUN sed -i "s|'wss://localhost:3000/ws/dc'|\`wss://\${window.location.host}/ws/dc\`|g" runtime-browser/runtime.ts \
+    && sed -i "s|'wss://localhost:3000/ws/backend'|\`wss://\${window.location.host}/ws/backend\`|g" runtime-browser/runtime.ts \
     && pnpm install \
     && pnpm build
 
