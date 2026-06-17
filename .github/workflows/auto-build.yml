@@ -1,0 +1,65 @@
+name: Auto-Build Latest Upstream Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs automatically every day at midnight
+  workflow_dispatch:    # Adds a button so you can run it manually anytime
+
+env:
+  IMAGE_NAME: "ghcr.io/${{ github.repository }}"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read     # Only needs to read your Dockerfile
+      packages: write    # Needs permission to push the final Docker image to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Built-in, no setup required!
+
+      - name: Check if image needs building
+        id: check
+        run: |
+          UPSTREAM_REPO="deltachat/deltachat-desktop"
+          
+          # 1. Ask GitHub API what the latest Delta Chat version is
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/$UPSTREAM_REPO/releases/latest" | jq -r .tag_name)
+          echo "Latest upstream tag is: $LATEST_TAG"
+          
+          # 2. Ask GHCR if we already published a Docker image for this version
+          # (We send the output to /dev/null so we don't spam the logs with manifest JSON)
+          if docker manifest inspect ${{ env.IMAGE_NAME }}:$LATEST_TAG > /dev/null 2>&1; then
+            echo "Image for $LATEST_TAG already exists in GHCR. Skipping build!"
+            echo "build_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Image for $LATEST_TAG not found! We need to build it."
+            echo "build_needed=true" >> $GITHUB_OUTPUT
+            echo "version=$LATEST_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        # Only runs if the previous step said we need to build
+        if: steps.check.outputs.build_needed == 'true' 
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push new image
+        # Only runs if the previous step said we need to build
+        if: steps.check.outputs.build_needed == 'true' 
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            DELTACHAT_VERSION=${{ steps.check.outputs.version }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.check.outputs.version }}
