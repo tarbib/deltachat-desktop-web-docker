@@ -1,8 +1,13 @@
 services:
   deltachat:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/tarbib/deltachat-desktop-web-docker:latest
+    
+    # To build from source locally, comment out the 'image' line above 
+    # and uncomment the 'build' block below:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    
     container_name: deltachat-web
     restart: unless-stopped
     ports:
@@ -21,5 +26,6 @@ services:
              mkdir -p data/certificate && 
              cp -rn /opt/deltachat-certificate/* data/certificate/ && 
              pnpm run start"
+
 volumes:
   deltachat_data:
