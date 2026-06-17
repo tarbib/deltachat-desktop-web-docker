@@ -6,16 +6,20 @@ RUN apk update && apk add build-base \
 
 FROM node:alpine
 
+# 1. Define the ARG right after the FROM statement. 
+# We default to 'main' so it still works if you run a manual local build.
+ARG DELTACHAT_VERSION=main
+
 EXPOSE 3000
 
 VOLUME /opt/deltachat-desktop/packages/target-browser/data
 
 WORKDIR /opt/deltachat-desktop
 
-# Replaced the curl script with 'npm install -g pnpm'
+# 2. Modify the git clone command to fetch only the specific version branch/tag
 RUN apk update && apk add git curl \
     && npm install -g pnpm \
-    && git clone https://github.com/deltachat/deltachat-desktop /opt/deltachat-desktop
+    && git clone --branch ${DELTACHAT_VERSION} --depth 1 https://github.com/deltachat/deltachat-desktop /opt/deltachat-desktop
 
 WORKDIR /opt/deltachat-desktop/packages/target-browser
 
