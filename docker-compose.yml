@@ -10,8 +10,8 @@ services:
     
     container_name: deltachat-web
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # ports:
+    #  - "3000:3000"
     environment:
       - WEB_PASSWORD=your_secure_password_here
     volumes:
