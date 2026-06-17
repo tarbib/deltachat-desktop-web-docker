@@ -1,32 +1,44 @@
-# delta.chat desktop in docker container
+# Delta Chat Desktop in Docker
 
-rough info / example on how to run delta.chat desktop within docker as a web app
+A complete guide and configuration to run the Delta Chat desktop application within a Docker container as a web app.
 
-## dire warnings
+## ⚠️ Important Warnings
 
-- the delta code is pre-alpha status
-- there are many caveats, see the delta chat docs before attempting to run the desktop app as a web app within docker
-- WARNING: You must put this container behind a reverse proxy (like Cosmos Cloud, Traefik, or Nginx) to access it securely over the internet.
+* **Pre-Alpha Status:** The Delta Chat web-app code is currently in pre-alpha status.
+* **Caveats Apply:** There are many limitations. Please see the [Delta Chat browser docs](https://github.com/deltachat/deltachat-desktop/tree/main/packages/target-browser) before relying on this setup.
+* **Reverse Proxy Required:** You **must** put this container behind a reverse proxy (like Cosmos Cloud, Traefik, or Nginx) to access it securely over the internet.
 
-*Note: The previous requirements for manual certificate generation, manual `.env` file mounting, and static `base_url.patch` modifications have been fully automated in this repository!*
+> **Note:** The previous requirements for manual certificate generation, manual `.env` file mounting, and static `base_url.patch` modifications have been fully automated in this repository!
 
-## links
+---
 
-- https://github.com/deltachat/deltachat-desktop/tree/main
-- https://github.com/deltachat/deltachat-desktop/tree/main/packages/target-browser
+## 🔗 Useful Links
 
-## Quick Start (Docker Compose)
+* [Delta Chat Desktop Source Code](https://github.com/deltachat/deltachat-desktop/tree/main)
+* [Delta Chat Target Browser Source Code](https://github.com/deltachat/deltachat-desktop/tree/main/packages/target-browser)
 
-The easiest way to run this project is using Docker Compose. The configuration below will automatically build the web app with dynamic host detection, generate the required self-signed certificates, and provision a secure password.
+---
 
-1. Create a `docker-compose.yml` file with the following contents:
+## 🚀 Quick Start (Docker Compose)
 
-\`\`\`yaml
+The easiest way to run this project is using Docker Compose. The configuration below uses the automated, pre-built image from the GitHub Container Registry. It will dynamically handle host detection, generate required self-signed certificates, and provision your secure password.
+
+### 1. Create `docker-compose.yml`
+
+Create a file named `docker-compose.yml` with the following contents:
+
+```yaml
 services:
   deltachat:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Pulls the pre-built image automatically
+    image: ghcr.io/tarbib/deltachat-desktop-web-docker:latest
+    
+    # To build from source locally, comment out the 'image' line above 
+    # and uncomment the 'build' block below:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    
     container_name: deltachat-web
     restart: unless-stopped
     ports:
@@ -50,52 +62,62 @@ services:
 
 volumes:
   deltachat_data:
-\`\`\`
+```
 
-2. Build and start the container:
-\`\`\`shell
-docker compose up -d --build
-\`\`\`
+### 2. Start the Application
+Pull the image and start the container in detached mode:
+```shell
+docker compose pull
+docker compose up -d
+```
 
-3. Check the logs to ensure it started successfully:
-\`\`\`shell
+### 3. Verify the Logs
+Check the logs to ensure the service started successfully:
+```shell
 docker compose logs -f
-\`\`\`
+```
 
-## Reverse Proxy Requirements (Crucial)
+---
 
-Because Delta Chat has strict internal security rules, the application runs on **HTTPS using a self-signed certificate** generated during the build process. 
+## 🛡️ Reverse Proxy Requirements (Crucial)
+
+Because Delta Chat has strict internal security rules, the application runs on **HTTPS using a self-signed certificate** generated during the container's startup process. 
 
 If you are using a reverse proxy (like Cosmos Cloud, Nginx Proxy Manager, or Traefik) to provide a valid Let's Encrypt certificate to the outside world, you **must** configure your proxy with the following settings:
 
-1. **Accept Insecure / Self-Signed Backend Certs:** You must tell your proxy to ignore certificate warnings when communicating with the Delta Chat container (e.g., "Disable Strict SSL" or "Insecure Skip Verify").
+1. **Accept Insecure / Self-Signed Backend Certs:** You must tell your proxy to ignore certificate warnings when communicating with the Delta Chat container (e.g., enable "Disable Strict SSL" or "Insecure Skip Verify").
 2. **Enable WebSockets:** Delta Chat requires WebSockets (`wss://`) for real-time messaging. Ensure your proxy routes WebSocket traffic correctly.
-3. **Target URL:** Route your proxy to `https://<your-server-ip>:3000` (NOTE the HTTPS).
+3. **Target URL:** Route your proxy to `https://<your-server-ip>:3000` (**Note:** You must use `https`, not `http`).
 
-## docker labels for self-hosting with traefik
+---
 
-note: you likely want to setup basic auth via traffic too
+## 🚦 Traefik Configuration (Self-Hosting)
 
-If you are using Traefik, you can add these labels to your `docker-compose.yml` (under a `labels:` block inside the `deltachat` service):
+If you are using Traefik as your reverse proxy, you can dynamically configure it by adding these labels to your `docker-compose.yml` (under a `labels:` block inside the `deltachat` service). 
 
-\`\`\`yaml
-    - "diun.enable=false"
-    - "traefik.enable=true"
-    - "traefik.http.routers.deltachat-desktop-user-1.tls"
-    - "traefik.http.routers.deltachat-desktop-user-1.tls.certresolver=letsencrypt"
-    - "traefik.http.routers.deltachat-desktop-user-1_insecure.entrypoints=web"
-    - "traefik.http.routers.deltachat-desktop-user-1_insecure.rule=Host(\`deltachat-desktop-user-1.domain.tld\`)"
-    - "traefik.http.routers.deltachat-desktop-user-1_insecure.middlewares=redirect@file"
-    - "traefik.http.routers.deltachat-desktop-user-1.entrypoints=web-secure"
-    - "traefik.http.routers.deltachat-desktop-user-1.rule=Host(\`deltachat-desktop-user-1.domain.tld\`)"
-    - "traefik.http.services.deltachat-desktop-user-1.loadbalancer.server.port=3000"
-    - "traefik.http.services.deltachat-desktop-user-1.loadbalancer.server.scheme=https"
-\`\`\`
+*Note: You will likely want to set up basic auth via Traefik as well for added security.*
 
-*(Note: Ensure you update `deltachat-desktop-user-1.domain.tld` to your actual domain).*
+```yaml
+    labels:
+      - "diun.enable=false"
+      - "traefik.enable=true"
+      - "traefik.http.routers.deltachat-desktop-user-1.tls"
+      - "traefik.http.routers.deltachat-desktop-user-1.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.deltachat-desktop-user-1_insecure.entrypoints=web"
+      - "traefik.http.routers.deltachat-desktop-user-1_insecure.rule=Host(`deltachat-desktop-user-1.domain.tld`)"
+      - "traefik.http.routers.deltachat-desktop-user-1_insecure.middlewares=redirect@file"
+      - "traefik.http.routers.deltachat-desktop-user-1.entrypoints=web-secure"
+      - "traefik.http.routers.deltachat-desktop-user-1.rule=Host(`deltachat-desktop-user-1.domain.tld`)"
+      - "traefik.http.services.deltachat-desktop-user-1.loadbalancer.server.port=3000"
+      - "traefik.http.services.deltachat-desktop-user-1.loadbalancer.server.scheme=https"
+```
 
-## Licensing
+**(Ensure you update `deltachat-desktop-user-1.domain.tld` to your actual domain).**
 
-Unless otherwise stated all source code is licensed under the [Apache 2 License](LICENSE-APACHE-2.0.txt).
+---
 
-Unless otherwise stated the non source code contents of this repository are licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](LICENSE-CC-Attribution-NonCommercial-ShareAlike-4.0-International.txt).
+## 📄 Licensing
+
+Unless otherwise stated, all source code is licensed under the [Apache 2 License](LICENSE-APACHE-2.0.txt).
+
+Unless otherwise stated, the non-source code contents of this repository are licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](LICENSE-CC-Attribution-NonCommercial-ShareAlike-4.0-International.txt).
